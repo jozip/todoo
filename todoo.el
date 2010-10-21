@@ -9,6 +9,9 @@
 ;; Version: $Id: todoo.el,v 1.2 2004/12/28 21:21:50 muli Exp $
 ;; Keywords: TODO, todo, project management
 
+;; Contributions:
+;; Johan Persson <johan.z.persson@gmail.com>
+
 ;; This file is NOT (yet) part of GNU Emacs.
 
 ;; This is free software; you can redistribute it and/or modify it
@@ -58,6 +61,7 @@
 
 ;;; ChangeLog:
 
+;; 1.7 - Added todoo-done-item and todoo-undone-item
 ;; 1.6 - Metadata - set the buffer to be modified whenever 
 ;;       the folding state changes, and set a hook so that 
 ;;       every save of the main buffer will also save the 
@@ -129,6 +133,11 @@
   :type 'string
   :group 'todoo)
 
+(defcustom todoo-item-marker-done  "x"
+  "*String used to indicate a done item."
+  :type 'string
+  :group 'todoo)
+
 (defcustom todoo-file-name "~/.todo"
   "*Default todo file opened by 'todoo-show'."
   :type 'file
@@ -159,6 +168,11 @@
   :type 'face
   :group 'todoo)
 
+(defcustom todoo-item-done-header-face 'todoo-item-done-header-face
+  "Specify face used for assigned items "
+  :type 'face
+  :group 'todoo)
+
 
 ;;; Faces:
 
@@ -173,6 +187,10 @@
 (defface todoo-item-assigned-header-face 
      '((t (:foreground "red" :bold t)))
    "Todoo-item assigned header face")
+
+(defface todoo-item-done-header-face 
+     '((t (:foreground "gray" :strike-through t)))
+   "Todoo-item done header face")
 
 
 ;;; Variables:
@@ -229,6 +247,9 @@
                     ["Assign item to self" todoo-assign-item-to-self t]
                     ["Assign item to other" todoo-assign-item t]
                     ["Unassign item" todoo-unassign-item t]
+		    "---"
+                    ["Mark item done" todoo-done-item t]
+                    ["Unmark item done" todoo-undone-item t]
                     "---"
                     ["Hide all"	hide-body t]
                     ["Show all" show-all t]
@@ -266,7 +287,8 @@
   "Regexp for matching markers. Created from 'todoo-item-marker' and
 'todoo-item-marker-assigned'"
   (concat "^\\(" (regexp-quote todoo-item-marker) "\\|"
-	  (regexp-quote todoo-item-marker-assigned) "\\) "))
+	  (regexp-quote todoo-item-marker-assigned) "\\|"
+          (regexp-quote todoo-item-marker-done) "\\) "))
 
 
 
@@ -315,6 +337,42 @@ asking."
     (goto-char (todoo-item-start))
     (show-subtree)
     (set-buffer-modified-p t)))
+
+(defun todoo-done-item () 
+  "Mark todo-item done."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (if (not (looking-at (todoo-item-marker-regexp)))
+        (search-backward-regexp (todoo-item-marker-regexp) nil t))
+    (if (or (re-search-forward 
+             (concat "^" (regexp-quote todoo-item-marker) " ")
+             (todoo-item-end) t)
+            (re-search-forward 
+             (concat "^" (regexp-quote todoo-item-marker-assigned) " ")
+             (todoo-item-end) t))
+        (replace-match (concat todoo-item-marker-done " ") nil nil)
+      (message "doop"))))
+
+(defun todoo-undone-item () 
+  "Mark todo-item done."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (if (not (looking-at (todoo-item-marker-regexp)))
+	(search-backward-regexp (todoo-item-marker-regexp) nil t))
+    (if (re-search-forward 
+         (concat "^" todoo-item-marker-done " \\[")
+         (todoo-item-end) t)
+        (replace-match 
+         (concat todoo-item-marker-assigned " [") 
+         nil nil)
+      (if (re-search-forward
+           (concat "^" todoo-item-marker-done " ")
+           (todoo-item-end) t) 
+          (replace-match (concat todoo-item-marker " ") nil nil)
+        (message "Item is already active.")))))
+
 
 
 (defun todoo-assign-item (&optional user) 
